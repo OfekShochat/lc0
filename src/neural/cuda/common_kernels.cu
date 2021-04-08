@@ -60,7 +60,7 @@ __global__ void addVectors_kernel(T* c, T* a, T* b, int size, int asize,
     }
 
     if (useSigmoid) {
-      cVal = 1.0f / (1.0f + exp(-cVal));
+      cVal = tanh(cVal);
     }
 
     c[i] = (T)cVal;
@@ -357,7 +357,7 @@ __global__ void globalScale_kernel(T* output, const T* input,
   int startIdx = n * 2 * C;  // Scale and bias interleaved.
 
   float s = scaleBias[startIdx + c];
-  s = 1.0f / (1.0f + exp(-s));  // Sigmoid on scale.
+  s = tanh(s);  // Sigmoid on scale.
 
   float b = scaleBias[startIdx + c + C];
 
@@ -386,7 +386,7 @@ __global__ void globalScale_kernel_fp16_nhwc(half* output, const half* input,
   int startIdx = n * 2 * C;  // Scale and bias interleaved.
 
   float s = scaleBias[startIdx + c];
-  s = 1.0f / (1.0f + exp(-s));  // Sigmoid on scale.
+  s = tanh(s);  // Sigmoid on scale.
 
   float b = scaleBias[startIdx + c + C];
 
