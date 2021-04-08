@@ -316,8 +316,8 @@ __global__ void OutputTransform_kernel(int N, int C, int se_K, T* output,
     S += (float)b2[k];
     B += (float)b2[k + C];
 
-    // Sigmoid (only on the scale part).
-    S = 1.0f / (1.0f + exp(-S));
+    // Tanh (only on the scale part).
+    S = tanhf(S);
   }
 
   // Scale/bias, add skip connection, perform relu, and write to output.
@@ -433,8 +433,8 @@ void OutputTransform_SE_relu_InputTransform_kernel(int N, int C, int se_K, T* ou
     S += (float)b2[k];
     B += (float)b2[k + C];
 
-    // Sigmoid (only on the scale part).
-    S = 1.0f / (1.0f + exp(-S));
+    // Tanh (only on the scale part).
+    S = tanhf(S);
   }
 
   // Scale/bias, add skip connection, perform relu, and write to output.
