@@ -572,6 +572,39 @@ FCLayer<DataType>::~FCLayer() {
   ReportCUDAErrors(cudaFree(biases_));
 }
 
+Transformer::Transformer(BaseLayer<float>* inputLayer) : BaseLayer<float>(1, 8, 8, inputLayer) {
+  fc1 = std::make_unique<FCLayer<float>>(inputLayer, 64, 1, 1, false, true);
+  fc2 = std::make_unique<FCLayer<float>>(inputLayer, 64, 1, 1, false, true);
+  fc3 = std::make_unique<FCLayer<float>>(inputLayer, 64, 1, 1, false, true);
+}
+
+void Transformer::LoadWeights(float* w1, float* b1, 
+                              float* w2, float* b2,
+                              float* w3, float* b3
+                              void*) {
+  fc1->LoadWeights(w1, b1);
+  fc2->LoadWeights(w2, b2);
+  fc3->LoadWeights(w3, b3);
+}
+
+void Transformer::Eval(int N, float* output, const float input,
+                       void* scratch_mem, size_t scratch_size, 
+                       cublasHandle_t cublas) {
+  // multihead attention seperation
+  float* fc1out = nullptr;
+  float* fc2out = nullptr;
+  float* fc3out = nullptr;
+  fc1->Eval(N, fc1out, input);
+  fc2->Eval(N, fc2out, input);
+  fc3->Eval(N, fc3out, input);
+}
+
+Transformer::~Transformer() {
+  delete fc1;
+  delete fc2;
+  delete fc3;
+}
+
 template <typename DataType>
 PolicyMapLayer<DataType>::PolicyMapLayer(BaseLayer<DataType>* ip, int C, int H,
                                          int W, int usedSize)

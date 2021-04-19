@@ -138,6 +138,22 @@ class FCLayer : public BaseLayer<DataType> {
   DataType* biases_ = nullptr;
 };
 
+class Transformer : public BaseLayer<float> {
+ public:
+  Transformer(BaseLayer<float>* inputLayer);
+  ~Transformer();
+  void LoadWeights(float* w1, float* b1, 
+                   float* w2, float* b2,
+                   float* w3, float* b3);
+  void Eval(int N, float* output, const float* input,
+            cublasHandle_t cublas);
+ private:
+  BaseLayer<float>* inputLayer_;
+  FCLayer<float>* fc1; 
+  FCLayer<float>* fc2;
+  FCLayer<float>* fc3;
+};
+
 template <typename DataType>
 class PolicyMapLayer: public BaseLayer<DataType> {
  using BaseLayer<DataType>::nhwc_;
