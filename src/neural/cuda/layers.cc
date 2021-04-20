@@ -588,8 +588,8 @@ void Transformer::LoadWeights(float* w1, float* b1,
 }
 
 void Transformer::Eval(int N, float* output, const float* input,
-                      void* scratch, size_t scratch_size, 
-                      cublasHandle_t cublas) {
+                      const float* /*input2*/, void* scratch, size_t scratch_size, 
+                      cublasHandle_t /*cudnn*/, cublasHandle_t cublas) {
   // multihead attention seperation
   float* q = nullptr;
   float* k = nullptr;
@@ -597,16 +597,16 @@ void Transformer::Eval(int N, float* output, const float* input,
   fc1->Eval(N, q, input, input, scratch, scratch_size, cublas, cublas);
   fc2->Eval(N, k, input, input, scratch, scratch_size, cublas, cublas);
   fc3->Eval(N, v, input, input, scratch, scratch_size, cublas, cublas);
-  float alpha = 1.0f, beta = 0.0f;
-  float num_inputs1 = fc1->C * fc1->H * fc1->W;
-  float num_inputs2 = fc2->C * fc2->H * fc2->W;
-  ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, num_outputs,
-                                 N, num_inputs1, &alpha, q, num_inputs2,
-                                 k, , &beta, output_tensor,
-                                 num_outputs));
-
+  
   // attention
-
+  float alpha = 1.0f, beta = 0.0f;
+  const int  num_inputs1 = fc1->GetC() * fc1->GetH() * fc1->GetW();
+  const int  num_inputs2 = fc2->GetC() * fc2->GetH() * fc2->GetW();
+  float* KxV;
+  ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, num_inputs1,
+                                 N, num_inputs1, &alpha, q, num_inputs2,
+                                 k, num_inputs1, &beta, KxV,
+                                 num_inputs2));
 }
 
 Transformer::~Transformer() {
