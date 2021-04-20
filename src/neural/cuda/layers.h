@@ -28,6 +28,7 @@
 
 #include <cstddef>
 #include <cublas_v2.h>
+#include <memory>
 
 #ifdef USE_CUDNN
 #include <cudnn.h>
@@ -144,14 +145,16 @@ class Transformer : public BaseLayer<float> {
   ~Transformer();
   void LoadWeights(float* w1, float* b1, 
                    float* w2, float* b2,
-                   float* w3, float* b3);
+                   float* w3, float* b3
+                   void* scratch);
   void Eval(int N, float* output, const float* input,
+            void* scratch, size_t scratch_size, 
             cublasHandle_t cublas);
  private:
   BaseLayer<float>* inputLayer_;
-  FCLayer<float>* fc1; 
-  FCLayer<float>* fc2;
-  FCLayer<float>* fc3;
+  std::unique_ptr<FCLayer<float>> fc1;
+  std::unique_ptr<FCLayer<float>> fc2;
+  std::unique_ptr<FCLayer<float>> fc3;
 };
 
 template <typename DataType>

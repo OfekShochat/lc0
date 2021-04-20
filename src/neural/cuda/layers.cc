@@ -581,28 +581,38 @@ Transformer::Transformer(BaseLayer<float>* inputLayer) : BaseLayer<float>(1, 8, 
 void Transformer::LoadWeights(float* w1, float* b1, 
                               float* w2, float* b2,
                               float* w3, float* b3
-                              void*) {
-  fc1->LoadWeights(w1, b1);
-  fc2->LoadWeights(w2, b2);
-  fc3->LoadWeights(w3, b3);
+                              void* scratch) {
+  fc1->LoadWeights(w1, b1, scratch);
+  fc2->LoadWeights(w2, b2, scratch);
+  fc3->LoadWeights(w3, b3, scratch);
 }
 
-void Transformer::Eval(int N, float* output, const float input,
-                       void* scratch_mem, size_t scratch_size, 
-                       cublasHandle_t cublas) {
+void Transformer::Eval(int N, float* output, const float* input,
+                      void* scratch, size_t scratch_size, 
+                      cublasHandle_t cublas) {
   // multihead attention seperation
-  float* fc1out = nullptr;
-  float* fc2out = nullptr;
-  float* fc3out = nullptr;
-  fc1->Eval(N, fc1out, input);
-  fc2->Eval(N, fc2out, input);
-  fc3->Eval(N, fc3out, input);
+  float* q = nullptr;
+  float* k = nullptr;
+  float* v = nullptr;
+  fc1->Eval(N, q, input, input, scratch, scratch_size, cublas, cublas);
+  fc2->Eval(N, k, input, input, scratch, scratch_size, cublas, cublas);
+  fc3->Eval(N, v, input, input, scratch, scratch_size, cublas, cublas);
+  float alpha = 1.0f, beta = 0.0f;
+  float num_inputs1 = fc1->C * fc1->H * fc1->W;
+  float num_inputs2 = fc2->C * fc2->H * fc2->W;
+  ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, num_outputs,
+                                 N, num_inputs1, &alpha, q, num_inputs2,
+                                 k, , &beta, output_tensor,
+                                 num_outputs));
+
+  // attention
+
 }
 
 Transformer::~Transformer() {
-  delete fc1;
-  delete fc2;
-  delete fc3;
+  delete fc1.get();
+  delete fc2.get();
+  delete fc3.get();
 }
 
 template <typename DataType>
