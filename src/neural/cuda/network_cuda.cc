@@ -294,7 +294,7 @@ class CudaNetwork : public Network {
 
     resi_last_ = getLastLayer();
 
-    auto trans = std::make_unique<Transformer>(resi_last_)
+    auto trans = std::make_unique<Transformer>(resi_last_);
 
     // Policy head.
     if (conv_policy_) {

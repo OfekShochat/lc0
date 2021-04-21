@@ -145,11 +145,11 @@ class Transformer : public BaseLayer<float> {
   ~Transformer();
   void LoadWeights(float* w1, float* b1, 
                    float* w2, float* b2,
-                   float* w3, float* b3
+                   float* w3, float* b3,
                    void* scratch);
   void Eval(int N, float* output, const float* input,
             const float* input2, void* scratch, size_t scratch_size, 
-            cublasHandle_t cudnn, cublasHandle_t cublas) override;
+            cublasHandle_t cudnn, cublasHandle_t cublas);
  private:
   BaseLayer<float>* inputLayer_;
   std::unique_ptr<FCLayer<float>> fc1;

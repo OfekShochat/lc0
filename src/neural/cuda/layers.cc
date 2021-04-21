@@ -580,7 +580,7 @@ Transformer::Transformer(BaseLayer<float>* inputLayer) : BaseLayer<float>(1, 8, 
 
 void Transformer::LoadWeights(float* w1, float* b1, 
                               float* w2, float* b2,
-                              float* w3, float* b3
+                              float* w3, float* b3,
                               void* scratch) {
   fc1->LoadWeights(w1, b1, scratch);
   fc2->LoadWeights(w2, b2, scratch);
