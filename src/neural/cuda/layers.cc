@@ -587,6 +587,10 @@ void Transformer::LoadWeights(float* w1, float* b1,
   fc3->LoadWeights(w3, b3, scratch);
 }
 
+#if !defined(ARRAY_SIZE)
+  #define ARRAY_SIZE(x) (sizeof((x)) / sizeof((x)[0]))
+#endif
+
 void Transformer::Eval(int N, float* output, const float* input,
                       const float* /*input2*/, void* scratch, size_t scratch_size, 
                       cublasHandle_t /*cudnn*/, cublasHandle_t cublas) {
@@ -607,6 +611,25 @@ void Transformer::Eval(int N, float* output, const float* input,
                                  N, num_inputs1, &alpha, q, num_inputs2,
                                  k, num_inputs1, &beta, KxV,
                                  num_inputs2));
+  // softmax
+  int size = ARRAY_SIZE(KxV);
+	float m = -INFINITY;
+	for (int i = 0; i < size; ++i) {
+		if (m < KxV[i]) {
+			m = KxV[i];
+		}
+	}
+
+	float sum = 0.0;
+	for (int i = 0; i < size; ++i) {
+		sum += exp(KxV[i] - m);
+	}
+
+	const float constant = m + log(sum);
+	for (int i = 0; i < size; ++i) {
+		KxV[i] = exp(KxV[i] - constant);
+	}
+  // last matrix mult
 }
 
 Transformer::~Transformer() {
