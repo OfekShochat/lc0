@@ -572,13 +572,15 @@ FCLayer<DataType>::~FCLayer() {
   ReportCUDAErrors(cudaFree(biases_));
 }
 
-Transformer::Transformer(BaseLayer<float>* inputLayer) : BaseLayer<float>(1, 8, 8, inputLayer) {
-  fc1 = std::make_unique<FCLayer<float>>(inputLayer, 64, 1, 1, false, true);
-  fc2 = std::make_unique<FCLayer<float>>(inputLayer, 64, 1, 1, false, true);
-  fc3 = std::make_unique<FCLayer<float>>(inputLayer, 64, 1, 1, false, true);
+template <typename DataType>
+Transformer<DataType>::Transformer(BaseLayer<DataType>* inputLayer) : BaseLayer<DataType>(1, 8, 8, inputLayer) {
+  fc1 = std::make_unique<FCLayer<DataType>>(inputLayer, 64, 1, 1, false, true);
+  fc2 = std::make_unique<FCLayer<DataType>>(inputLayer, 64, 1, 1, false, true);
+  fc3 = std::make_unique<FCLayer<DataType>>(inputLayer, 64, 1, 1, false, true);
 }
 
-void Transformer::LoadWeights(float* w1, float* b1, 
+template <typename DataType>
+void Transformer<DataType>::LoadWeights(float* w1, float* b1, 
                               float* w2, float* b2,
                               float* w3, float* b3,
                               void* scratch) {
@@ -591,8 +593,9 @@ void Transformer::LoadWeights(float* w1, float* b1,
   #define ARRAY_SIZE(x) (sizeof((x)) / sizeof((x)[0]))
 #endif
 
-void Transformer::Eval(int N, float* output, const float* input,
-                      const float* /*input2*/, void* scratch, size_t scratch_size, 
+template <typename DataType>
+void Transformer<DataType>::Eval(int N, DataType* output, const DataType* input,
+                      const DataType* /*input2*/, void* scratch, size_t scratch_size, 
                       cublasHandle_t /*cudnn*/, cublasHandle_t cublas) {
   // multihead attention seperation
   float* q = nullptr;
@@ -606,33 +609,41 @@ void Transformer::Eval(int N, float* output, const float* input,
   float alpha = 1.0f, beta = 0.0f;
   const int  num_inputs1 = fc1->GetC() * fc1->GetH() * fc1->GetW();
   const int  num_inputs2 = fc2->GetC() * fc2->GetH() * fc2->GetW();
-  float* KxV;
+  float* KxQ;
   ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, num_inputs1,
                                  N, num_inputs1, &alpha, q, num_inputs2,
-                                 k, num_inputs1, &beta, KxV,
+                                 k, num_inputs1, &beta, KxQ,
                                  num_inputs2));
   // softmax
-  int size = ARRAY_SIZE(KxV);
+  int size = ARRAY_SIZE(KxQ);
 	float m = -INFINITY;
 	for (int i = 0; i < size; ++i) {
-		if (m < KxV[i]) {
-			m = KxV[i];
+		if (m < KxQ[i]) {
+			m = KxQ[i];
 		}
 	}
 
 	float sum = 0.0;
 	for (int i = 0; i < size; ++i) {
-		sum += exp(KxV[i] - m);
+		sum += exp(KxQ[i] - m);
 	}
 
 	const float constant = m + log(sum);
 	for (int i = 0; i < size; ++i) {
-		KxV[i] = exp(KxV[i] - constant);
+		KxQ[i] = exp(KxQ[i] - constant);
 	}
   // last matrix mult
+  float* QKxV;
+   ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, num_inputs1,
+                                 N, num_inputs1, &alpha, KxQ, num_inputs2,
+                                 v, num_inputs1, &beta, QKxV,
+                                 num_inputs2));
+  // output
+  output = static_cast<DataType>(QKxV);
 }
 
-Transformer::~Transformer() {
+template <typename DataType>
+Transformer<DataType>::~Transformer() {
   delete fc1.get();
   delete fc2.get();
   delete fc3.get();

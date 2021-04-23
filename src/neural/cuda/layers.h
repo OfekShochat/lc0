@@ -139,16 +139,17 @@ class FCLayer : public BaseLayer<DataType> {
   DataType* biases_ = nullptr;
 };
 
-class Transformer : public BaseLayer<float> {
+template <typename DataType>
+class Transformer : public BaseLayer<DataType> {
  public:
-  Transformer(BaseLayer<float>* inputLayer);
+  Transformer(BaseLayer<DataType>* inputLayer);
   ~Transformer();
   void LoadWeights(float* w1, float* b1, 
                    float* w2, float* b2,
                    float* w3, float* b3,
                    void* scratch);
-  void Eval(int N, float* output, const float* input,
-            const float* input2, void* scratch, size_t scratch_size, 
+  void Eval(int N, DataType* output, const DataType* input,
+            const DataType* input2, void* scratch, size_t scratch_size, 
             cublasHandle_t cudnn, cublasHandle_t cublas);
  private:
   BaseLayer<float>* inputLayer_;
