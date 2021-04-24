@@ -13,17 +13,13 @@ set EIGEN=false
 set TEST=false
 
 rem 2. Edit the paths for the build dependencies.
-set CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0
+set CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.1
 set CUDNN_PATH=%CUDA_PATH%
 set OPENBLAS_PATH=C:\OpenBLAS
 set MKL_PATH=C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\mkl
 set DNNL_PATH=C:\dnnl_win_1.1.1_cpu_vcomp
 set OPENCL_LIB_PATH=%CUDA_PATH%\lib\x64
 set OPENCL_INCLUDE_PATH=%CUDA_PATH%\include
-
-rem 3. In most cases you won't need to change anything further down.
-echo Deleting build directory:
-rd /s build
 
 set CC=cl
 set CXX=cl
@@ -62,8 +58,6 @@ meson build --backend %backend% --buildtype release -Ddx=%DX12% -Dcudnn=%CUDNN% 
 -Ddefault_library=static
 
 if errorlevel 1 exit /b
-
-pause
 
 cd build
 

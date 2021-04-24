@@ -74,6 +74,8 @@ struct LegacyWeights {
 
   // Value head
   ConvBlock value;
+  ConvBlock conv1;
+  ConvBlock conv2;
   Vec ip1_val_w;
   Vec ip1_val_b;
   Vec ip2_val_w;

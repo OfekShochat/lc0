@@ -336,12 +336,26 @@ class CudaNetwork : public Network {
 
     // Value head.
     {
-      auto convVal = std::make_unique<Conv1Layer<DataType>>(
+      auto convVal1 = std::make_unique<Conv1Layer<DataType>>(
           resi_last_, weights.value.biases.size(), 8, 8, kNumFilters, true,
           true, use_gemm_ex);
-      convVal->LoadWeights(&weights.value.weights[0], &weights.value.biases[0],
+      convVal1->LoadWeights(&weights.value.weights[0], &weights.value.biases[0],
                            scratch_mem_);
-      network_.emplace_back(std::move(convVal));
+      network_.emplace_back(std::move(convVal1));
+
+      auto convVal2 = std::make_unique<FusedWinogradConvSELayer<DataType>>(
+              getLastLayer(), weights.conv1.biases.size(), 8, 8, weights.value.biases.size(), true, true, false,
+          false, 0, use_gemm_ex);
+      convVal2->LoadWeights(&weights.conv1.weights[0], &weights.conv1.biases[0],
+                           scratch_mem_);
+      network_.emplace_back(std::move(convVal2));
+
+      auto convVal3 = std::make_unique<FusedWinogradConvSELayer<DataType>>(
+              getLastLayer(), weights.conv2.biases.size(), 8, 8, weights.conv1.biases.size(), true, true, false,
+          false, 0, use_gemm_ex);
+      convVal3->LoadWeights(&weights.conv2.weights[0], &weights.conv2.biases[0],
+                           scratch_mem_);
+      network_.emplace_back(std::move(convVal3));
 
       auto FCVal1 = std::make_unique<FCLayer<DataType>>(
           getLastLayer(), weights.ip1_val_b.size(), 1, 1, true, true);

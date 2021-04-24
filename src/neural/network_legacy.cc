@@ -35,6 +35,8 @@ LegacyWeights::LegacyWeights(const pblczero::Weights& weights)
       ip_pol_w(LayerAdapter(weights.ip_pol_w()).as_vector()),
       ip_pol_b(LayerAdapter(weights.ip_pol_b()).as_vector()),
       value(weights.value()),
+      conv1(weights.conv1()),
+      conv2(weights.conv2()),
       ip1_val_w(LayerAdapter(weights.ip1_val_w()).as_vector()),
       ip1_val_b(LayerAdapter(weights.ip1_val_b()).as_vector()),
       ip2_val_w(LayerAdapter(weights.ip2_val_w()).as_vector()),
