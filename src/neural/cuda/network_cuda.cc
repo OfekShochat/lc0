@@ -352,11 +352,9 @@ class CudaNetwork : public Network {
       auto convVal2 = std::make_unique<FusedWinogradConvSELayer<DataType>>(
               getLastLayer(), weights.conv1.biases.size(), 8, 8, kNumFilters, false, true, false,
           false, 0, use_gemm_ex);
-      std::cout << "dd" << std::endl;
       std::cout << "poop" << std::endl;
       convVal2->LoadWeights(&weights.conv1.weights[0], &weights.conv1.biases[0],
                            scratch_mem_);
-      std::cout << "poop1" << std::endl;
       network_.emplace_back(std::move(convVal2));
       std::cout << "poop2" << std::endl;
       auto convVal3 = std::make_unique<FusedWinogradConvSELayer<DataType>>(
@@ -365,9 +363,8 @@ class CudaNetwork : public Network {
       std::cout << "poop3" << std::endl;
       convVal3->LoadWeights(&weights.conv2.weights[0], &weights.conv2.biases[0],
                            scratch_mem_);
-      std::cout << "poop4" << std::endl;
       network_.emplace_back(std::move(convVal3));
-
+      std::cout << "poop4" << std::endl;
       auto FCVal1 = std::make_unique<FCLayer<DataType>>(
           getLastLayer(), weights.ip1_val_b.size(), 1, 1, true, true);
       FCVal1->LoadWeights(&weights.ip1_val_w[0], &weights.ip1_val_b[0],
@@ -537,25 +534,28 @@ class CudaNetwork : public Network {
     network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
                         scratch_mem_, scratch_size_, nullptr,
                         cublas_);  // value conv
+    std::cout << "2" << std::endl;
     network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
-                        scratch_mem_, scratch_size_, nullptr,
-                        cublas_); 
+                          scratch_mem_, scratch_size_, nullptr,
+                          cublas_);
+    std::cout << "2" << std::endl;
     network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
-                        scratch_mem_, scratch_size_, nullptr,
-                        cublas_);  // value conv
+                          scratch_mem_, scratch_size_, nullptr,
+                          cublas_);
+    std::cout << "2" << std::endl;
 
     network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
                           scratch_mem_, scratch_size_, nullptr,
                           cublas_);
-
+    std::cout << "2" << std::endl;
     network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
                           scratch_mem_, scratch_size_, nullptr,
                           cublas_);
-
+    std::cout << "2" << std::endl;
     network_[l++]->Eval(batchSize, tensor_mem_[1], tensor_mem_[0], nullptr,
                         scratch_mem_, scratch_size_, nullptr,
                         cublas_);  // value FC1
-
+    std::cout << "2" << std::endl;
     if (wdl_) {
       if (fp16) {
         network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[1], nullptr,
@@ -581,6 +581,7 @@ class CudaNetwork : public Network {
                             cublas_);  // value FC2    // VALUE
       }
     }
+    std::cout << "2" << std::endl;
 
     if (moves_left_) {
       // Moves left head
