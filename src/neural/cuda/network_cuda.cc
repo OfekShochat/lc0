@@ -355,6 +355,7 @@ class CudaNetwork : public Network {
       std::cout << "poop" << std::endl;
       convVal2->LoadWeights(&weights.conv1.weights[0], &weights.conv1.biases[0],
                            scratch_mem_);
+      std::cout << "poop" << std::endl;
       network_.emplace_back(std::move(convVal2));
       std::cout << "poop2" << std::endl;
       auto convVal3 = std::make_unique<FusedWinogradConvSELayer<DataType>>(
@@ -432,7 +433,7 @@ class CudaNetwork : public Network {
 
 #ifdef DEBUG_RAW_NPS
     CERR << "allocated " << 3 * maxSize
-         << " bytes of GPU memory to run the network";
+        std::cout << "poop" << std::endl; << " bytes of GPU memory to run the network";
 #endif
   }
 
@@ -535,53 +536,52 @@ class CudaNetwork : public Network {
                         scratch_mem_, scratch_size_, nullptr,
                         cublas_);  // value conv
     std::cout << "2" << std::endl;
-    network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
+    network_[l++]->Eval(batchSize, tensor_mem_[1], tensor_mem_[0], nullptr,
                           scratch_mem_, scratch_size_, nullptr,
                           cublas_);
     std::cout << "2" << std::endl;
-    network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
+    network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[1], nullptr,
                           scratch_mem_, scratch_size_, nullptr,
                           cublas_);
     std::cout << "2" << std::endl;
 
-    network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
-                          scratch_mem_, scratch_size_, nullptr,
-                          cublas_);
-    std::cout << "2" << std::endl;
-    network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[2], nullptr,
+    /*network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[1], nullptr,
                           scratch_mem_, scratch_size_, nullptr,
                           cublas_);
     std::cout << "2" << std::endl;
     network_[l++]->Eval(batchSize, tensor_mem_[1], tensor_mem_[0], nullptr,
+                          scratch_mem_, scratch_size_, nullptr,
+                          cublas_);*/
+    //std::cout << "2" << std::endl;
+    network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[1], nullptr,
                         scratch_mem_, scratch_size_, nullptr,
                         cublas_);  // value FC1
     std::cout << "2" << std::endl;
     if (wdl_) {
       if (fp16) {
-        network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[1], nullptr,
+        network_[l++]->Eval(batchSize, tensor_mem_[1], tensor_mem_[0], nullptr,
                             scratch_mem_, scratch_size_, nullptr,
                             cublas_);  // value FC2    // VALUE
-        copyTypeConverted(opVal, (half*)(tensor_mem_[0]),
+        copyTypeConverted(opVal, (half*)(tensor_mem_[1]),
                           3 * batchSize);  // VALUE
       } else {
-        network_[l++]->Eval(batchSize, (DataType*)opVal, tensor_mem_[1],
+        network_[l++]->Eval(batchSize, (DataType*)opVal, tensor_mem_[0],
                             nullptr, scratch_mem_, scratch_size_, nullptr,
                             cublas_);  // value FC2    // VALUE
       }
     } else {
       if (fp16) {
         // TODO: consider fusing the bias-add of FC2 with format conversion.
-        network_[l++]->Eval(batchSize, tensor_mem_[0], tensor_mem_[1], nullptr,
+        network_[l++]->Eval(batchSize, tensor_mem_[1], tensor_mem_[0], nullptr,
                             scratch_mem_, scratch_size_, nullptr,
                             cublas_);  // value FC2
-        copyTypeConverted(opVal, (half*)(tensor_mem_[0]), batchSize);  // VALUE
+        copyTypeConverted(opVal, (half*)(tensor_mem_[1]), batchSize);  // VALUE
       } else {
-        network_[l++]->Eval(batchSize, (DataType*)opVal, tensor_mem_[1],
+        network_[l++]->Eval(batchSize, (DataType*)opVal, tensor_mem_[0],
                             nullptr, scratch_mem_, scratch_size_, nullptr,
                             cublas_);  // value FC2    // VALUE
       }
     }
-    std::cout << "2" << std::endl;
 
     if (moves_left_) {
       // Moves left head
@@ -609,7 +609,7 @@ class CudaNetwork : public Network {
     ReportCUDAErrors(cudaDeviceSynchronize());
     // The next thread can start using the GPU now.
     lock.unlock();
-
+    std::cout << "2" << std::endl;
     if (wdl_) {
       // Value softmax done cpu side.
       for (int i = 0; i < batchSize; i++) {
@@ -624,6 +624,7 @@ class CudaNetwork : public Network {
         io->op_value_mem_[3 * i + 1] = d;
         io->op_value_mem_[3 * i + 2] = l;
       }
+      std::cout << "2" << std::endl;
     }
 
 #ifdef DEBUG_RAW_NPS
