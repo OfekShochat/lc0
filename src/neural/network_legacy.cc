@@ -32,6 +32,8 @@ LegacyWeights::LegacyWeights(const pblczero::Weights& weights)
     : input(weights.input()),
       policy1(weights.policy1()),
       policy(weights.policy()),
+      unc1(weights.unc1()),
+      unc(weights.unc()),
       ip_pol_w(LayerAdapter(weights.ip_pol_w()).as_vector()),
       ip_pol_b(LayerAdapter(weights.ip_pol_b()).as_vector()),
       value(weights.value()),

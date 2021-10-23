@@ -338,6 +338,46 @@ class CudaNetwork : public Network {
     }
     policy_out_ = getLastLayer();
 
+    // Policy head.
+    if (conv_policy_) {
+      auto conv1 = std::make_unique<FusedWinogradConvSELayer<DataType>>(
+          resi_last_, kNumFilters, 8, 8, kNumFilters, true, true, false,
+          false, 0, use_gemm_ex);
+      conv1->LoadWeights(&weights.unc1.weights[0],
+                         &weights.unc1.biases[0], scratch_mem_);
+      network_.emplace_back(std::move(conv1));
+
+      auto pol_channels = weights.unc.biases.size();
+
+      // No relu
+      auto conv2 = std::make_unique<FusedWinogradConvSELayer<DataType>>(
+          getLastLayer(), pol_channels, 8, 8, kNumFilters, false, true, false,
+          false, 0, use_gemm_ex);
+      conv2->LoadWeights(&weights.unc.weights[0], &weights.unc.biases[0],
+                         scratch_mem_);
+      network_.emplace_back(std::move(conv2));
+
+      auto policymap = std::make_unique<PolicyMapLayer<DataType>>(
+          getLastLayer(), kNumOutputPolicy, 1, 1, 73 * 8 * 8);
+      policymap->LoadWeights(kConvPolicyMap, scratch_mem_);
+
+      network_.emplace_back(std::move(policymap));
+    } else {
+      auto convPol = std::make_unique<Conv1Layer<DataType>>(
+          resi_last_, weights.policy.biases.size(), 8, 8, kNumFilters, true,
+          true, use_gemm_ex);
+      convPol->LoadWeights(&weights.policy.weights[0],
+                           &weights.policy.biases[0], scratch_mem_);
+      network_.emplace_back(std::move(convPol));
+
+      auto FCPol = std::make_unique<FCLayer<DataType>>(
+          getLastLayer(), weights.ip_pol_b.size(), 1, 1, false, true);
+      FCPol->LoadWeights(&weights.ip_pol_w[0], &weights.ip_pol_b[0],
+                         scratch_mem_);
+      network_.emplace_back(std::move(FCPol));
+    }
+    uncertainty_out_ = getLastLayer();
+
     // Value head.
     {
       auto convVal = std::make_unique<Conv1Layer<DataType>>(
@@ -671,6 +711,11 @@ class CudaNetwork : public Network {
         io->op_value_mem_[3 * i + 2] = l;
       }
     }
+
+    for (int i = 0; i < batchSize; i++) {
+      float x = io->op_value_mem_[i];
+      io->op_uncertainty_mem_[i] = 1 / (1 + std::exp(-x));
+    }
   }
 
   ~CudaNetwork() {
@@ -740,6 +785,7 @@ class CudaNetwork : public Network {
   BaseLayer<DataType>* resi_last_;
   BaseLayer<DataType>* policy_out_;
   BaseLayer<DataType>* value_out_;
+  BaseLayer<DataType>* uncertainty_out_;
   BaseLayer<DataType>* moves_left_out_;
 
   size_t tensor_mem_size_;

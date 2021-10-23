@@ -68,6 +68,11 @@ struct LegacyWeights {
   Vec ip_pol_w;
   Vec ip_pol_b;
 
+  // Uncertainty head
+  // Extra convolution for AZ-style uncertainty head
+  ConvBlock unc1;
+  ConvBlock unc;
+
   // Value head
   ConvBlock value;
   Vec ip1_val_w;
