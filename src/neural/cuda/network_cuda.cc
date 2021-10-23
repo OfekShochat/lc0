@@ -97,6 +97,10 @@ class CudaNetworkComputation : public NetworkComputation {
     return inputs_outputs_->op_policy_mem_[sample * kNumOutputPolicy + move_id];
   }
 
+  float GetUVal(int sample) const {
+    return inputs_outputs_->op_uncertainty_mem_[sample];
+  }
+
   float GetMVal(int sample) const override {
     if (moves_left_) {
       return inputs_outputs_->op_moves_left_mem_[sample];
@@ -527,9 +531,56 @@ class CudaNetwork : public Network {
       }
     }
 
-    // Copy policy output from device memory to host memory.
     ReportCUDAErrors(cudaMemcpyAsync(
         io->op_policy_mem_, io->op_policy_mem_gpu_,
+                        sizeof(float) * kNumOutputPolicy * batchSize,
+                        cudaMemcpyDeviceToHost, stream));
+
+    // nothing is optional yet
+    // - Tilps 10:00 AM, October 2021
+    if (conv_policy_) {
+      network_[l++]->Eval(batchSize, tensor_mem[0], tensor_mem[2], nullptr,
+                          scratch_mem, scratch_size_, nullptr, cublas,
+                          stream);  // policy conv1
+
+      network_[l++]->Eval(batchSize, tensor_mem[1], tensor_mem[0], nullptr,
+                          scratch_mem, scratch_size_, nullptr, cublas,
+                          stream);  // policy conv2
+
+      if (fp16) {
+        network_[l++]->Eval(batchSize, tensor_mem[0], tensor_mem[1], nullptr,
+                            scratch_mem, scratch_size_, nullptr, cublas,
+                            stream);  // policy map layer
+        copyTypeConverted(opPol, (half*)(tensor_mem[0]),
+                          batchSize * kNumOutputPolicy,
+                          stream);  // POLICY output
+      } else {
+        network_[l++]->Eval(batchSize, (DataType*)opPol, tensor_mem[1], nullptr,
+                            scratch_mem, scratch_size_, nullptr, cublas,
+                            stream);  // policy map layer  // POLICY output
+      }
+    } else {
+      network_[l++]->Eval(batchSize, tensor_mem[0], tensor_mem[2], nullptr,
+                          scratch_mem, scratch_size_, nullptr, cublas,
+                          stream);  // pol conv
+
+      if (fp16) {
+        network_[l++]->Eval(batchSize, tensor_mem[1], tensor_mem[0], nullptr,
+                            scratch_mem, scratch_size_, nullptr, cublas,
+                            stream);  // pol FC
+
+        copyTypeConverted(opPol, (half*)(tensor_mem[1]),
+                          batchSize * kNumOutputPolicy, stream);  // POLICY
+      } else {
+        network_[l++]->Eval(batchSize, (DataType*)opPol, tensor_mem[0], nullptr,
+                            scratch_mem, scratch_size_, nullptr, cublas,
+                            stream);  // pol FC  // POLICY
+      }
+    }
+
+    // Copy policy output from device memory to host memory.
+    ReportCUDAErrors(cudaMemcpyAsync(
+        io->op_uncertainty_mem_, io->op_uncertainty_mem_gpu_,
                         sizeof(float) * kNumOutputPolicy * batchSize,
                         cudaMemcpyDeviceToHost, stream));
 

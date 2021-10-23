@@ -48,6 +48,9 @@ struct InputsOutputs {
     ReportCUDAErrors(cudaHostAlloc(
         &op_policy_mem_, maxBatchSize * kNumOutputPolicy * sizeof(float), 0));
 
+    ReportCUDAErrors(cudaHostAlloc(
+        &op_uncertainty_mem_, maxBatchSize * sizeof(float), 0));
+
     // Seperate device memory copy for policy output.
     // It's faster to write to device memory and then copy to host memory
     // than having the kernel write directly to it.
@@ -99,19 +102,20 @@ struct InputsOutputs {
       cudaStreamDestroy(stream_);
       cublasDestroy(cublas_);
     }
-  
   }
   uint64_t* input_masks_mem_;
   float* input_val_mem_;
   float* op_policy_mem_;
   float* op_value_mem_;
   float* op_moves_left_mem_;
+  float* op_uncertainty_mem_;
 
   // GPU pointers for the above allocations.
   uint64_t* input_masks_mem_gpu_;
   float* input_val_mem_gpu_;
   float* op_value_mem_gpu_;
   float* op_moves_left_mem_gpu_;
+  float* op_uncertainty_mem_gpu_;
 
   // This is a seperate copy.
   float* op_policy_mem_gpu_;
