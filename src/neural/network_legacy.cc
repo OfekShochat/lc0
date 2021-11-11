@@ -32,8 +32,16 @@ LegacyWeights::LegacyWeights(const pblczero::Weights& weights)
     : input(weights.input()),
       policy1(weights.policy1()),
       policy(weights.policy()),
-      ip_pol_w(LayerAdapter(weights.ip_pol_w()).as_vector()),
-      ip_pol_b(LayerAdapter(weights.ip_pol_b()).as_vector()),
+      ip1_pol_w(LayerAdapter(weights.ip1_pol_w()).as_vector()),
+      ip1_pol_b(LayerAdapter(weights.ip1_pol_b()).as_vector()),
+      ip2_pol_w(LayerAdapter(weights.ip2_pol_w()).as_vector()),
+      ip2_pol_b(LayerAdapter(weights.ip2_pol_b()).as_vector()),
+      ip3_pol_w(LayerAdapter(weights.ip3_pol_w()).as_vector()),
+      ip3_pol_b(LayerAdapter(weights.ip3_pol_b()).as_vector()),
+      ip4_pol_w(LayerAdapter(weights.ip4_pol_w()).as_vector()),
+      ip4_pol_b(LayerAdapter(weights.ip4_pol_b()).as_vector()),
+      ip5_pol_w(LayerAdapter(weights.ip5_pol_w()).as_vector()),
+      ip5_pol_b(LayerAdapter(weights.ip5_pol_b()).as_vector()),
       value(weights.value()),
       ip1_val_w(LayerAdapter(weights.ip1_val_w()).as_vector()),
       ip1_val_b(LayerAdapter(weights.ip1_val_b()).as_vector()),
@@ -46,6 +54,9 @@ LegacyWeights::LegacyWeights(const pblczero::Weights& weights)
       ip2_mov_b(LayerAdapter(weights.ip2_mov_b()).as_vector()) {
   for (const auto& res : weights.residual()) {
     residual.emplace_back(res);
+  }
+  for (const auto& enc : weights.encoder_pol()) {
+    encoder.emplace_back(enc);
   }
 }
 
@@ -117,4 +128,13 @@ LegacyWeights::ConvBlock::ConvBlock(const pblczero::Weights::ConvBlock& block)
   bn_betas.clear();
   bn_gammas.clear();
 }
+
+LegacyWeights::EncoderLayer::EncoderLayer(const pblczero::Weights::EncoderLayer& encoder_layer) 
+    : mha(encoder_layer.mha()),
+      ln1_gamma(LayerAdapter(encoder_layer.ln1_gamma()).as_vector()),
+      ln1_beta(LayerAdapter(encoder_layer.ln1_beta()).as_vector()),
+      ffn(encoder_layer.ffn()),
+      ln2_gamma(LayerAdapter(encoder_layer.ln2_gamma()).as_vector()),
+      ln2_beta(LayerAdapter(encoder_layer.ln2_beta()).as_vector()) {}
+
 }  // namespace lczero

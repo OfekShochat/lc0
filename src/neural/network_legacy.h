@@ -55,6 +55,36 @@ struct LegacyWeights {
     bool has_se;
   };
 
+  struct MHA {
+    explicit MHA(const pblczero::Weights::MHA& mha);
+    Vec q_w;
+    Vec q_b;
+    Vec k_w;
+    Vec k_b;
+    Vec v_w;
+    Vec v_b;
+    Vec dense_w;
+    Vec dense_b;
+  };
+
+  struct FFN {
+    explicit FFN(const pblczero::Weights::FFN& ffn);
+    Vec dense1_w;
+    Vec dense1_b;
+    Vec dense2_w;
+    Vec dense2_b;
+  };
+
+  struct EncoderLayer {
+    explicit EncoderLayer(const pblczero::Weights::EncoderLayer& encoder_layer);
+    MHA mha;
+    Vec ln1_gamma;
+    Vec ln1_beta;
+    FFN ffn;
+    Vec ln2_gamma;
+    Vec ln2_beta;
+  };
+
   // Input convnet.
   ConvBlock input;
 
@@ -65,8 +95,18 @@ struct LegacyWeights {
   // Extra convolution for AZ-style policy head
   ConvBlock policy1;
   ConvBlock policy;
-  Vec ip_pol_w;
-  Vec ip_pol_b;
+  Vec ip1_pol_w;   // "embedding" in policy attention
+  Vec ip1_pol_b;
+  Vec ip2_pol_w;  // "wq" in policy attention
+  Vec ip2_pol_b;
+  Vec ip3_pol_w;  // "wk" in policy attention
+  Vec ip3_pol_b;
+  Vec ip4_pol_w;  // "ppo" in policy attention
+  Vec ip4_pol_b;
+  Vec ip5_pol_w;  // might be needed for hydra policy
+  Vec ip5_pol_b;
+  // Policy encoder stack
+  std::vector<EncoderLayer> encoder;
 
   // Value head
   ConvBlock value;
