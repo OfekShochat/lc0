@@ -129,6 +129,22 @@ LegacyWeights::ConvBlock::ConvBlock(const pblczero::Weights::ConvBlock& block)
   bn_gammas.clear();
 }
 
+LegacyWeights::MHA::MHA(const pblczero::Weights::MHA& mha)
+    : q_w(LayerAdapter(mha.q_w()).as_vector()),
+      q_b(LayerAdapter(mha.q_b()).as_vector()),
+      k_w(LayerAdapter(mha.k_w()).as_vector()),
+      k_b(LayerAdapter(mha.k_b()).as_vector()),
+      v_w(LayerAdapter(mha.v_w()).as_vector()),
+      v_b(LayerAdapter(mha.v_b()).as_vector()),
+      dense_w(LayerAdapter(mha.dense_w()).as_vector()),
+      dense_b(LayerAdapter(mha.dense_b()).as_vector()) {}
+
+LegacyWeights::FFN::FFN(const pblczero::Weights::FFN& ffn)
+    : dense1_w(LayerAdapter(ffn.dense1_w()).as_vector()),
+      dense1_b(LayerAdapter(ffn.dense1_b()).as_vector()),
+      dense2_w(LayerAdapter(ffn.dense2_w()).as_vector()),
+      dense2_b(LayerAdapter(ffn.dense2_b()).as_vector()) {}
+
 LegacyWeights::EncoderLayer::EncoderLayer(const pblczero::Weights::EncoderLayer& encoder_layer) 
     : mha(encoder_layer.mha()),
       ln1_gamma(LayerAdapter(encoder_layer.ln1_gamma()).as_vector()),
