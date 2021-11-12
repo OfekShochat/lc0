@@ -141,6 +141,17 @@ class FCLayer : public BaseLayer<DataType> {
 };
 
 template <typename DataType>
+class Attention : public BaseLayer<DataType> {
+  using BaseLayer<DataType>::nhwc_;
+
+ public:
+  Attention(BaseLayer<DataType>* ip, int C, int H);
+  ~Attention();
+
+  void LoadWeights();
+};
+
+template <typename DataType>
 class PolicyMapLayer: public BaseLayer<DataType> {
  using BaseLayer<DataType>::nhwc_;
 

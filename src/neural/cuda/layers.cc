@@ -574,6 +574,9 @@ FCLayer<DataType>::~FCLayer() {
   ReportCUDAErrors(cudaFree(biases_));
 }
 
+// template <typename DataType>
+// TODO(ghostway|someone): implementation of Attention()
+
 template <typename DataType>
 PolicyMapLayer<DataType>::PolicyMapLayer(BaseLayer<DataType>* ip, int C, int H,
                                          int W, int usedSize)
