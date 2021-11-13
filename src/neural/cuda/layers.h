@@ -141,14 +141,21 @@ class FCLayer : public BaseLayer<DataType> {
 };
 
 template <typename DataType>
-class Attention : public BaseLayer<DataType> {
+class EncoderBlock : public BaseLayer<DataType> {
   using BaseLayer<DataType>::nhwc_;
 
  public:
-  Attention(BaseLayer<DataType>* ip, int C, int H);
-  ~Attention();
+  EncoderBlock(BaseLayer<DataType>* ip, int emb_size, int d_model, int n_heads, int dff);
+  ~EncoderBlock();
 
   void LoadWeights();
+
+ private:
+  FCLayer<DataType> mha_dense1_;
+  FCLayer<DataType> mha_dense2_;
+  FCLayer<DataType> mha_dense3_;
+  FCLayer<DataType> ffn_dense1_;
+  FCLayer<DataType> ffn_dense2_;
 };
 
 template <typename DataType>

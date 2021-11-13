@@ -574,8 +574,21 @@ FCLayer<DataType>::~FCLayer() {
   ReportCUDAErrors(cudaFree(biases_));
 }
 
-// template <typename DataType>
-// TODO(ghostway|someone): implementation of Attention()
+template <typename DataType>
+EncoderBlock<DataType>::EncoderBlock(BaseLayer<DataType>* ip, int emb_size, int d_model, int n_heads, int dff)
+    : BaseLayer<DataType>(1, emb_size, 1, ip)
+      mha_dense1_(FCLayer<DataType>(d_model, 8, 8, false, true)),
+      mha_dense2_(FCLayer<DataType>(d_model, 8, 8, false, true)),
+      mha_dense3_(FCLayer<DataType>(d_model, 8, 8, false, true)),
+      ffn_dense1_(FCLayer<DataType>(dff, 8, 8, false, true)),
+      ffn_dense2_(FCLayer<DataType>(emb_size, , , false, true)) { // TODO: figure out what should be here
+
+}
+
+template <typename DataType>
+EncoderBlock<DataType>::~EncoderBlock() {
+  
+}
 
 template <typename DataType>
 PolicyMapLayer<DataType>::PolicyMapLayer(BaseLayer<DataType>* ip, int C, int H,
@@ -748,6 +761,7 @@ void FusedWinogradConvSELayer<DataType>::LoadWeights(float* pfilter,
 }
 
 // TODO: Do this on the GPU to improve network load time!
+// NOTE(ghostway): tried that. no real time gains at least on small networks.
 static inline void CpuTranspose(float* op, float* ip, size_t rows, size_t cols) {
   for (size_t i = 0; i < rows; i++)
     for (size_t j = 0; j < cols; j++) op[j * rows + i] = ip[i * cols + j];
