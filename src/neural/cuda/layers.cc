@@ -576,18 +576,57 @@ FCLayer<DataType>::~FCLayer() {
 
 template <typename DataType>
 EncoderBlock<DataType>::EncoderBlock(BaseLayer<DataType>* ip, int emb_size, int d_model, int n_heads, int dff)
-    : BaseLayer<DataType>(1, emb_size, 1, ip)
-      mha_dense1_(FCLayer<DataType>(d_model, 8, 8, false, true)),
-      mha_dense2_(FCLayer<DataType>(d_model, 8, 8, false, true)),
-      mha_dense3_(FCLayer<DataType>(d_model, 8, 8, false, true)),
-      ffn_dense1_(FCLayer<DataType>(dff, 8, 8, false, true)),
-      ffn_dense2_(FCLayer<DataType>(emb_size, , , false, true)) { // TODO: figure out what should be here
+    : BaseLayer<DataType>(1, emb_size, 1, ip),
+      mha_dense1_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
+      mha_dense2_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
+      mha_dense3_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
+      ffn_dense1_(FCLayer<DataType>(mha_dense1_, dff, 1, 1, false, true)),
+      ffn_dense2_(FCLayer<DataType>(ffn_dense1_, emb_size, 1, 1, false, true)) {
 
 }
 
 template <typename DataType>
 EncoderBlock<DataType>::~EncoderBlock() {
+  free(mha_dense1_);
+  free(mha_dense2_);
+  free(mha_dense3_);
+  free(ffn_dense1_);
+  free(ffn_dense2_);
+}
+
+template <typename DataType>
+void EncoderBlock<DataType>::LoadWeights(float* mha_dense1_w, float* mha_dense1_b, float* mha_dense2_w, float* mha_dense2_b,
+                                         float* mha_dense3_w, float* mha_dense3_b, float* ffn_dense1_w, float* ffn_dense1_b,
+                                         float* ffn_dense2_w, float* ffn_dense2_b) {
+  mha_dense1_.LoadWeights(mha_dense1_w, mha_dense1_b);
+  mha_dense1_.LoadWeights(mha_dense2_w, mha_dense2_b);
+  mha_dense1_.LoadWeights(mha_dense3_w, mha_dense3_b);
+  mha_dense1_.LoadWeights(ffn_dense1_w, ffn_dense1_b);
+  mha_dense1_.LoadWeights(ffn_dense2_w, ffn_dense2_b);
+}
+
+template <>
+void EncoderBlock<float>::Eval(int N, float* output_tensor,
+                               const float* input_tensor, const float* /*input2*/,
+                               void* /*scratch*/, size_t /*scratch_size*/,
+                               cudnnHandle_t /*cudnn*/, cublasHandle_t cublas,
+                               cudaStream_t stream) {
   
+  float* q = {};
+  mha_dense1_.Eval(N, q, input_tensor, nullptr, nullptr, 0, nullptr, cublas, stream);
+  float* k = {};
+  mha_dense1_.Eval(N, k, input_tensor, nullptr, nullptr, 0, nullptr, cublas, stream);
+  float* v = {};
+  mha_dense1_.Eval(N, v, input_tensor, nullptr, nullptr, 0, nullptr, cublas, stream);
+  
+  // const int num_outputs = C * H * W;
+  // const int num_inputs = input_->GetC() * input_->GetH() * input_->GetW();
+
+  // float alpha = 1.0f, beta = 0.0f;
+  // ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, num_outputs,
+  //                                N, num_inputs, &alpha, weights_, num_inputs,
+  //                                input_tensor, num_inputs, &beta, output_tensor,
+  //                                num_outputs));
 }
 
 template <typename DataType>

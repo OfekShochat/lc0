@@ -148,7 +148,15 @@ class EncoderBlock : public BaseLayer<DataType> {
   EncoderBlock(BaseLayer<DataType>* ip, int emb_size, int d_model, int n_heads, int dff);
   ~EncoderBlock();
 
-  void LoadWeights();
+  void LoadWeights(float* mha_dense1_w, float* mha_dense1_b, float* mha_dense2_w, float* mha_dense2_b,
+                  float* mha_dense3_w, float* mha_dense3_b, float* ffn_dense1_w, float* ffn_dense1_b,
+                  float* ffn_dense2_w, float* ffn_dense2_b);
+
+  void Eval(int N, float* output_tensor,
+            const float* input_tensor, const float* /*input2*/,
+            void* /*scratch*/, size_t /*scratch_size*/,
+            cudnnHandle_t /*cudnn*/, cublasHandle_t cublas,
+            cudaStream_t stream) override;
 
  private:
   FCLayer<DataType> mha_dense1_;
