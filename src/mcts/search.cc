@@ -1631,6 +1631,9 @@ void SearchWorker::PickNodesToExtendTask(Node* node, int base_depth,
           int nstarted = current_nstarted[idx];
           const float util = current_util[idx];
           if (idx > cache_filled_idx) {
+            if (node->GetN() > 10000) {
+              current_pol[idx] = 0.05;
+            }
             current_score[idx] =
                 current_pol[idx] * puct_mult / (1 + nstarted) + util;
             cache_filled_idx++;
