@@ -43,7 +43,7 @@ constexpr int kInputPlanes = 112;
 template <typename T>
 __global__ void addVectors_kernel(T* c, T* a, T* b, int size, int asize,
                                   int bsize, bool relu, bool useTanh,
-                                  bool useSigmoid) {
+                                  bool useSigmoid, bool useSelu) {
   int i = threadIdx.x + blockDim.x * blockIdx.x;
   if (i < size) {
     float aVal = 0;
@@ -63,6 +63,13 @@ __global__ void addVectors_kernel(T* c, T* a, T* b, int size, int asize,
       cVal = 1.0f / (1.0f + exp(-cVal));
     }
 
+    if (useSelu) {
+      const float scale = 1.05070098;
+      const float alpha = 1.67326324;
+      if (cVal > 0) cVal = scale * cVal;
+      else cVal = scale * alpha * (exp(cVal) - 1);
+    }
+
     c[i] = (T)cVal;
   }
 }
@@ -71,12 +78,12 @@ __global__ void addVectors_kernel(T* c, T* a, T* b, int size, int asize,
 // activation.
 template <typename T>
 void addVectors(T* c, T* a, T* b, int size, int asize, int bsize, bool relu,
-                bool use_tanh, bool use_sigmoid, cudaStream_t stream) {
+                bool use_tanh, bool use_sigmoid, bool use_selu, cudaStream_t stream) {
   const int kBlockSize = 256;
   int blocks = DivUp(size, kBlockSize);
 
   addVectors_kernel<<<blocks, kBlockSize, 0, stream>>>(c, a, b, size, asize, bsize, relu,
-                                                       use_tanh, use_sigmoid);
+                                                       use_tanh, use_sigmoid, use_selu);
   ReportCUDAErrors(cudaGetLastError());
 }
 
@@ -566,10 +573,10 @@ template void batchNorm<half>(half* output, const half* input,
 
 template void addVectors<float>(float* c, float* a, float* b, int size,
                                 int asize, int bsize, bool relu, bool use_tanh,
-                                bool use_sigmoid, cudaStream_t stream);
+                                bool use_sigmoid, bool use_selu, cudaStream_t stream);
 template void addVectors<half>(half* c, half* a, half* b, int size, int asize,
                                int bsize, bool relu, bool use_tanh,
-                               bool use_sigmoid, cudaStream_t stream);
+                               bool use_sigmoid, bool use_selu, cudaStream_t stream);
 
 template void addBias_NCHW<float>(float* c, float* a, float* b, int N, int C,
                                   int H, int W, bool relu, cudaStream_t stream);

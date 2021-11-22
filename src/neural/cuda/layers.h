@@ -122,7 +122,7 @@ class FCLayer : public BaseLayer<DataType> {
 
  public:
   FCLayer(BaseLayer<DataType>* ip, int C, int H, int W, bool relu, bool bias,
-          bool tanh = false, bool sigmoid = false);
+          bool tanh = false, bool sigmoid = false, bool selu = false);
   ~FCLayer();
 
   void LoadWeights(float* cpuWeight, float* cpuBias, void* scratch);
@@ -136,6 +136,7 @@ class FCLayer : public BaseLayer<DataType> {
   const bool use_relu_;
   const bool use_tanh_;
   const bool use_sigmoid_;
+  const bool use_selu_;
   DataType* weights_ = nullptr;
   DataType* biases_ = nullptr;
 };
@@ -153,7 +154,7 @@ class EncoderBlock : public BaseLayer<DataType> {
                   float* ffn_dense2_w, float* ffn_dense2_b);
 
   void Eval(int N, float* output_tensor,
-            const float* input_tensor, const float* /*input2*/,
+            const float* input_tensor, const float* input2,
             void* /*scratch*/, size_t /*scratch_size*/,
             cudnnHandle_t /*cudnn*/, cublasHandle_t cublas,
             cudaStream_t stream) override;

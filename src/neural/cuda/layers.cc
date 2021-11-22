@@ -400,13 +400,13 @@ void SELayer<float>::Eval(int N, float* output, const float* input,
                                  N, C, &alpha, w1_, C, op2, C, &beta, op1,
                                  numFc1Out_));
   addVectors(op1, b1_, op1, numFc1Out_ * N, numFc1Out_, numFc1Out_ * N, true,
-             false, false, stream);
+             false, false, false, stream);
 
   // 3. Second fully connected layer.
   ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, 2 * C, N,
                                  numFc1Out_, &alpha, w2_, numFc1Out_, op1,
                                  numFc1Out_, &beta, op2, 2 * C));
-  addVectors(op2, b2_, op2, 2 * C * N, 2 * C, 2 * C * N, false, false, false, stream);
+  addVectors(op2, b2_, op2, 2 * C * N, 2 * C, 2 * C * N, false, false, false, false, stream);
 
   // 4. (Optional prev layer bias add), Global scale, residual add, relu and
   // bias.
@@ -442,13 +442,13 @@ void SELayer<half>::Eval(int N, half* output, const half* input,
                                    N, C, &alpha, w1_, C, op2, C, &beta, op1,
                                    numFc1Out_));
     addVectors(op1, b1_, op1, numFc1Out_ * N, numFc1Out_, numFc1Out_ * N, true,
-               false, false, stream);
+               false, false, false, stream);
 
     // 3. Second fully connected layer.
     ReportCUBLASErrors(cublasHgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, 2 * C, N,
                                    numFc1Out_, &alpha, w2_, numFc1Out_, op1,
                                    numFc1Out_, &beta, op2, 2 * C));
-    addVectors(op2, b2_, op2, 2 * C * N, 2 * C, 2 * C * N, false, false, false, stream);
+    addVectors(op2, b2_, op2, 2 * C * N, 2 * C, 2 * C * N, false, false, false, false, stream);
 
     // 4. (Optional prev layer bias add), Global scale, residual add, relu and
     // bias.
@@ -458,12 +458,14 @@ void SELayer<half>::Eval(int N, half* output, const half* input,
 
 template <typename DataType>
 FCLayer<DataType>::FCLayer(BaseLayer<DataType>* ip, int C, int H, int W,
-                           bool relu, bool bias, bool tanh, bool sigmoid)
+                           bool relu, bool bias, bool tanh, bool sigmoid,
+                           bool selu)
     : BaseLayer<DataType>(C, H, W, ip),
       use_bias_(bias),
       use_relu_(relu),
       use_tanh_(tanh),
-      use_sigmoid_(sigmoid) {
+      use_sigmoid_(sigmoid),
+      use_selu_(selu) {
   const size_t weight_size =
       sizeof(DataType) * C * H * W * ip->GetC() * ip->GetH() * ip->GetW();
   const size_t bias_size = sizeof(DataType) * C * H * W;
@@ -539,10 +541,10 @@ void FCLayer<half>::Eval(int N, half* output_tensor, const half* input_tensor,
                                  input_tensor, num_inputs, &beta, output_tensor,
                                  num_outputs));
 
-  if (use_bias_ || use_relu_ || use_tanh_ || use_sigmoid_) {
+  if (use_bias_ || use_relu_ || use_tanh_ || use_sigmoid_ || use_selu_) {
     addVectors(output_tensor, biases_, output_tensor, num_outputs * N,
                num_outputs, num_outputs * N, use_relu_, use_tanh_,
-               use_sigmoid_, stream);
+               use_sigmoid_, use_selu_, stream);
   }
 }
 
@@ -561,10 +563,10 @@ void FCLayer<float>::Eval(int N, float* output_tensor,
                                  input_tensor, num_inputs, &beta, output_tensor,
                                  num_outputs));
 
-  if (use_bias_ || use_relu_ || use_tanh_ || use_sigmoid_) {
+  if (use_bias_ || use_relu_ || use_tanh_ || use_sigmoid_ || use_selu_) {
     addVectors(output_tensor, biases_, output_tensor, num_outputs * N,
                num_outputs, num_outputs * N, use_relu_, use_tanh_,
-               use_sigmoid_, stream);
+               use_sigmoid_, use_selu_, stream);
   }
 }
 
@@ -582,7 +584,7 @@ EncoderBlock<DataType>::EncoderBlock(BaseLayer<DataType>* ip, int emb_size, int 
       mha_dense3_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
       ffn_dense1_(FCLayer<DataType>(mha_dense1_, dff, 1, 1, false, true)),
       ffn_dense2_(FCLayer<DataType>(ffn_dense1_, emb_size, 1, 1, false, true)) {
-
+  assert(d_model % n_heads == 0);
 }
 
 template <typename DataType>
@@ -601,17 +603,16 @@ void EncoderBlock<DataType>::LoadWeights(float* mha_dense1_w, float* mha_dense1_
   mha_dense1_.LoadWeights(mha_dense1_w, mha_dense1_b);
   mha_dense1_.LoadWeights(mha_dense2_w, mha_dense2_b);
   mha_dense1_.LoadWeights(mha_dense3_w, mha_dense3_b);
-  mha_dense1_.LoadWeights(ffn_dense1_w, ffn_dense1_b);
-  mha_dense1_.LoadWeights(ffn_dense2_w, ffn_dense2_b);
+  ffn_dense1_.LoadWeights(ffn_dense1_w, ffn_dense1_b);
+  ffn_dense2_.LoadWeights(ffn_dense2_w, ffn_dense2_b);
 }
 
 template <>
 void EncoderBlock<float>::Eval(int N, float* output_tensor,
-                               const float* input_tensor, const float* /*input2*/,
+                               const float* input_tensor, const float* input2,
                                void* /*scratch*/, size_t /*scratch_size*/,
                                cudnnHandle_t /*cudnn*/, cublasHandle_t cublas,
                                cudaStream_t stream) {
-  
   float* q = {};
   mha_dense1_.Eval(N, q, input_tensor, nullptr, nullptr, 0, nullptr, cublas, stream);
   float* k = {};
@@ -619,14 +620,18 @@ void EncoderBlock<float>::Eval(int N, float* output_tensor,
   float* v = {};
   mha_dense1_.Eval(N, v, input_tensor, nullptr, nullptr, 0, nullptr, cublas, stream);
   
-  // const int num_outputs = C * H * W;
-  // const int num_inputs = input_->GetC() * input_->GetH() * input_->GetW();
+  const int num_outputs_inputs = mha_dense1_.GetC() * mha_dense1_.GetH() * mha_dense1_.GetW();
+  float* attn_out = {};
 
-  // float alpha = 1.0f, beta = 0.0f;
-  // ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, num_outputs,
-  //                                N, num_inputs, &alpha, weights_, num_inputs,
-  //                                input_tensor, num_inputs, &beta, output_tensor,
-  //                                num_outputs));
+  float alpha = 1.0f, beta = 0.0f;
+  ReportCUBLASErrors(cublasSgemm(cublas, CUBLAS_OP_T, CUBLAS_OP_N, num_outputs_inputs,
+                                 N, num_outputs_inputs, &alpha, q, num_outputs_inputs,
+                                 k, num_outputs_inputs, &beta, attn_out,
+                                 num_outputs_inputs));
+  float* ffn_out = {};
+  ffn_dense1_.Eval(N, ffn_out, ffn_out, nullptr, nullptr, 0, nullptr, cublas, stream);
+  selu<float>(ffn_out, ffn_out, ffn_dense1_.GetC(), stream);
+  ffn_dense2_.Eval(N, ffn_out, ffn_out, nullptr, nullptr, 0, nullptr, cublas, stream);
 }
 
 template <typename DataType>
@@ -1030,7 +1035,7 @@ void Conv1Layer<DataType>::Eval(int N, DataType* output, const DataType* input,
     addBias_NCHW(output, output, biases_, N, C, H, W, use_relu_, stream);
   else if (use_relu_)
     addVectors(output, output, (DataType*)nullptr, N * C * H * W, N * C * H * W,
-               0, use_relu_, false, false, stream);
+               0, use_relu_, false, false, false, stream);
 }
 
 template <typename DataType>

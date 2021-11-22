@@ -32,7 +32,10 @@ namespace cudnn_backend {
 // activation (relu, tanh or sigmoid).
 template <typename T>
 void addVectors(T* c, T* a, T* b, int size, int asize, int bsize, bool relu,
-                bool use_tanh, bool use_sigmoid, cudaStream_t stream);
+                bool use_tanh, bool use_sigmoid, bool use_selu, cudaStream_t stream);
+
+template <typename T>
+void selu(T* a, T* out, int size, cudaStream_t stream);
 
 // Add bias to convolution's output.
 template <typename T>
