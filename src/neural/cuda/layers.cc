@@ -577,17 +577,6 @@ FCLayer<DataType>::~FCLayer() {
 }
 
 template <typename DataType>
-EncoderBlock<DataType>::EncoderBlock(BaseLayer<DataType>* ip, int emb_size, int d_model, int n_heads, int dff)
-    : BaseLayer<DataType>(1, emb_size, 1, ip),
-      mha_dense1_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
-      mha_dense2_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
-      mha_dense3_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
-      ffn_dense1_(FCLayer<DataType>(mha_dense1_, dff, 1, 1, false, true)),
-      ffn_dense2_(FCLayer<DataType>(ffn_dense1_, emb_size, 1, 1, false, true)) {
-  assert(d_model % n_heads == 0);
-}
-
-template <typename DataType>
 EncoderBlock<DataType>::~EncoderBlock() {
   free(mha_dense1_);
   free(mha_dense2_);
@@ -613,6 +602,7 @@ void EncoderBlock<float>::Eval(int N, float* output_tensor,
                                void* /*scratch*/, size_t /*scratch_size*/,
                                cudnnHandle_t /*cudnn*/, cublasHandle_t cublas,
                                cudaStream_t stream) {
+  // mha
   float* q = {};
   mha_dense1_.Eval(N, q, input_tensor, nullptr, nullptr, 0, nullptr, cublas, stream);
   float* k = {};
@@ -620,7 +610,7 @@ void EncoderBlock<float>::Eval(int N, float* output_tensor,
   float* v = {};
   mha_dense1_.Eval(N, v, input_tensor, nullptr, nullptr, 0, nullptr, cublas, stream);
   
-  const int num_outputs_inputs = mha_dense1_.GetC() * mha_dense1_.GetH() * mha_dense1_.GetW();
+  int num_outputs_inputs = mha_dense1_.GetC() * mha_dense1_.GetH() * mha_dense1_.GetW();
   float* attn_out = {};
 
   float alpha = 1.0f, beta = 0.0f;
@@ -628,10 +618,30 @@ void EncoderBlock<float>::Eval(int N, float* output_tensor,
                                  N, num_outputs_inputs, &alpha, q, num_outputs_inputs,
                                  k, num_outputs_inputs, &beta, attn_out,
                                  num_outputs_inputs));
+
+  // LayerNormalization and skip connection here https://github.com/Arcturai/lczero-training/blob/master/tf/tfprocess.py#L1169
+  addVectors(attn_out, attn_out, (float*)input_tensor,
+             num_outputs_inputs, num_outputs_inputs,
+             num_outputs_inputs, false, false,
+             false, false, stream);
+  // ffn
   float* ffn_out = {};
-  ffn_dense1_.Eval(N, ffn_out, ffn_out, nullptr, nullptr, 0, nullptr, cublas, stream);
-  selu<float>(ffn_out, ffn_out, ffn_dense1_.GetC(), stream);
+  ffn_dense1_.Eval(N, ffn_out, attn_out, nullptr, nullptr, 0, nullptr, cublas, stream);
   ffn_dense2_.Eval(N, ffn_out, ffn_out, nullptr, nullptr, 0, nullptr, cublas, stream);
+
+  // another LayerNormalization and skip connection here https://github.com/Arcturai/lczero-training/blob/master/tf/tfprocess.py#L1173
+  // and thats it!
+}
+
+template <typename DataType>
+EncoderBlock<DataType>::EncoderBlock(BaseLayer<DataType>* ip, int emb_size, int d_model, int n_heads, int dff)
+    : BaseLayer<DataType>(1, emb_size, 1, ip),
+      mha_dense1_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
+      mha_dense2_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
+      mha_dense3_(FCLayer<DataType>(ip, d_model, 1, 1, false, true)),
+      ffn_dense1_(FCLayer<DataType>(mha_dense1_, dff, 1, 1, false, true, false, false, true)),
+      ffn_dense2_(FCLayer<DataType>(ffn_dense1_, emb_size, 1, 1, false, true)) {
+  assert(d_model % n_heads == 0);
 }
 
 template <typename DataType>

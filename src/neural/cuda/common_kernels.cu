@@ -24,7 +24,6 @@
   terms of the respective license agreement, the licensors of this
   Program grant you additional permission to convey the resulting work.
 */
-
 #include <cassert>
 
 #include "cuda_common.h"

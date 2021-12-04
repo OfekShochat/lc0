@@ -34,9 +34,6 @@ template <typename T>
 void addVectors(T* c, T* a, T* b, int size, int asize, int bsize, bool relu,
                 bool use_tanh, bool use_sigmoid, bool use_selu, cudaStream_t stream);
 
-template <typename T>
-void selu(T* a, T* out, int size, cudaStream_t stream);
-
 // Add bias to convolution's output.
 template <typename T>
 void addBias_NCHW(T* c, T* a, T* b, int N, int C, int H, int W, bool relu, cudaStream_t stream);
