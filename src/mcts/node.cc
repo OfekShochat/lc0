@@ -287,6 +287,18 @@ bool Node::MakeSolid(float draw_score) {
     new_children[index].UpdateChildrenParents();
     old_child = std::move(new_children[index].sibling_);
   }
+
+  auto max = *max_element(std::begin(Ns), std::end(Ns));
+  auto sum = 0.0f;
+  for (const auto &n : Ns) {
+    sum += exp(n - max);
+  }
+
+  auto constant = max + log(sum);
+  for (int i = 0; i < Ns.size(); i++) {
+    Ns[i] = exp(Ns[i] - constant);
+  }
+
   // This is a hack.
   child_ = std::unique_ptr<Node>(new_children);
   solid_children_ = true;
