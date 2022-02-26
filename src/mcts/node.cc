@@ -245,7 +245,7 @@ std::string Node::DebugString() const {
   return oss.str();
 }
 
-bool Node::MakeSolid() {
+bool Node::MakeSolid(float draw_score) {
   if (solid_children_ || num_edges_ == 0 || IsTerminal()) return false;
   // Can only make solid if no immediate leaf childredn are in flight since we
   // allow the search code to hold references to leaf nodes across locks.
@@ -277,6 +277,7 @@ bool Node::MakeSolid() {
   std::unique_ptr<Node> old_child = std::move(child_);
   while (old_child) {
     int index = old_child->index_;
+    edges_[index].SetP(old_child->GetQ(draw_score));
     new_children[index] = std::move(*old_child.get());
     // This isn't needed, but it helps crash things faster if something has gone wrong.
     old_child->parent_ = nullptr;
