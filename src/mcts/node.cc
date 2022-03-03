@@ -275,7 +275,7 @@ bool Node::MakeSolid(float draw_score) {
     new (&(new_children[i])) Node(this, i);
   }
   std::unique_ptr<Node> old_child = std::move(child_);
-  std::vector<float> Ns;
+  std::vector<float> Ns(num_edges_);
   while (old_child) {
     int index = old_child->index_;
     Ns.push_back(old_child->GetN());
