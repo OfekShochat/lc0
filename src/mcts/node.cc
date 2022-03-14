@@ -275,28 +275,43 @@ bool Node::MakeSolid(float draw_score) {
     new (&(new_children[i])) Node(this, i);
   }
   std::unique_ptr<Node> old_child = std::move(child_);
-  std::vector<float> Ns(num_edges_);
+
+  std::allocator<int> ns_alloc;
+  auto* ns = ns_alloc.allocate(num_edges_);
+
+  auto max = 0;
   while (old_child) {
     int index = old_child->index_;
-    Ns.push_back(old_child->GetN());
+    ns[index] = old_child->GetN();
+    if (ns[index] > max) max = ns[index];
+    old_child = std::move(new_children[index].sibling_);
+  }
+
+  auto sum = 0.0f;
+  for (int i = 0; i < num_edges_; i++) {
+    sum += exp(ns[i] - max);
+  }
+
+  auto constant = max + log(sum);
+  for (int i = 0; i < num_edges_; i++) {
+    ns[i] = exp(ns[i] - constant);
+  }
+
+  /* new_children = alloc.allocate(num_edges_); */
+  /* for (int i = 0; i < num_edges_; i++) { */
+  /*   new (&(new_children[i])) Node(this, i); */
+  /* } */
+  old_child = std::move(child_);
+  while (old_child) {
+    int index = old_child->index_;
     /* edges_[index].SetP(old_child->GetN() / this->GetN()); */
+    edges_[index].SetP(ns[index]);
     new_children[index] = std::move(*old_child.get());
     // This isn't needed, but it helps crash things faster if something has gone wrong.
     old_child->parent_ = nullptr;
     gNodeGc.AddToGcQueue(std::move(old_child));
     new_children[index].UpdateChildrenParents();
     old_child = std::move(new_children[index].sibling_);
-  }
-
-  auto max = *max_element(std::begin(Ns), std::end(Ns));
-  auto sum = 0.0f;
-  for (const auto &n : Ns) {
-    sum += exp(n - max);
-  }
-
-  auto constant = max + log(sum);
-  for (int i = 0; i < Ns.size(); i++) {
-    Ns[i] = exp(Ns[i] - constant);
   }
 
   // This is a hack.
