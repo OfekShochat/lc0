@@ -245,7 +245,7 @@ std::string Node::DebugString() const {
   return oss.str();
 }
 
-bool Node::MakeSolid() {
+bool Node::MakeSolid(float draw_score) {
   if (solid_children_ || num_edges_ == 0 || IsTerminal()) return false;
   // Can only make solid if no immediate leaf childredn are in flight since we
   // allow the search code to hold references to leaf nodes across locks.
@@ -275,8 +275,37 @@ bool Node::MakeSolid() {
     new (&(new_children[i])) Node(this, i);
   }
   std::unique_ptr<Node> old_child = std::move(child_);
+
+  std::allocator<int> ns_alloc;
+  auto* ns = ns_alloc.allocate(num_edges_);
+
+  auto max = 0;
   while (old_child) {
     int index = old_child->index_;
+    ns[index] = old_child->GetN();
+    if (ns[index] > max) max = ns[index];
+    old_child = std::move(new_children[index].sibling_);
+  }
+
+  auto sum = 0.0f;
+  for (int i = 0; i < num_edges_; i++) {
+    sum += exp(ns[i] - max);
+  }
+
+  auto constant = max + log(sum);
+  for (int i = 0; i < num_edges_; i++) {
+    ns[i] = exp(ns[i] - constant);
+  }
+
+  /* new_children = alloc.allocate(num_edges_); */
+  /* for (int i = 0; i < num_edges_; i++) { */
+  /*   new (&(new_children[i])) Node(this, i); */
+  /* } */
+  old_child = std::move(child_);
+  while (old_child) {
+    int index = old_child->index_;
+    /* edges_[index].SetP(old_child->GetN() / this->GetN()); */
+    edges_[index].SetP(ns[index]);
     new_children[index] = std::move(*old_child.get());
     // This isn't needed, but it helps crash things faster if something has gone wrong.
     old_child->parent_ = nullptr;
@@ -284,6 +313,7 @@ bool Node::MakeSolid() {
     new_children[index].UpdateChildrenParents();
     old_child = std::move(new_children[index].sibling_);
   }
+
   // This is a hack.
   child_ = std::unique_ptr<Node>(new_children);
   solid_children_ = true;

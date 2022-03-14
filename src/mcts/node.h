@@ -251,7 +251,7 @@ class Node {
 
   // Reallocates this nodes children to be in a solid block, if possible and not
   // already done. Returns true if the transformation was performed.
-  bool MakeSolid();
+  bool MakeSolid(float draw_score);
 
   void SortEdges();
 

@@ -306,7 +306,7 @@ if get_option('build_backends')
 
     endif
 
-    deps += dependency('eigen3', fallback: ['eigen', 'eigen_dep'])
+    deps += dependency('eigen3', fallback: ['eigen', 'eigen_dep'], include_type: 'system')
 
     ispc = find_program('ispc', required: false)
     ispc_arch = 'x86-64'
@@ -484,14 +484,11 @@ if get_option('build_backends')
     else
       cuda_arguments += ['--std=c++14', '-Xcompiler', '-fPIC']
     endif
-    if get_option('nvcc_ccbin') != ''
-      cuda_arguments += ['-ccbin=' + get_option('nvcc_ccbin')]
-    endif
     cuda_cc = get_option('cc_cuda') # Unfortunately option cuda_cc is reserved.
     nvcc_extra_args = []
-    if cuda_cc != ''
-      nvcc_extra_args = ['-arch=compute_' + cuda_cc, '-code=sm_' + cuda_cc]
-    endif
+    #if cuda_cc != ''
+    #  nvcc_extra_args = ['-arch=compute_' + cuda_cc, '-code=sm_' + cuda_cc]
+    #endif
     foreach x : get_option('cudnn_include')
       cuda_arguments += ['-I', x]
     endforeach
@@ -506,7 +503,7 @@ if get_option('build_backends')
       )
 	 files += cuda_files
     files += cuda_gen.process(cuda_files_nvcc_common, extra_args: nvcc_extra_args)
-    nvcc_arch = '-arch=compute_70'
+    #nvcc_arch = '-arch=compute_70'
     nvcc_sm_list = ['sm_80', 'sm_75', 'sm_86', 'sm_70']
     if host_machine.system() != 'windows'
       nvcc_arch = '-arch=compute_60'
