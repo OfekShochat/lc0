@@ -32,7 +32,7 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace {
+namespace lczero {
 // GetPieceAt returns the piece found at row, col on board or the null-char '\0'
 // in case no piece there.
 char GetPieceAt(const lczero::ChessBoard& board, int row, int col) {
@@ -111,6 +111,7 @@ GameResult PositionHistory::ComputeGameResult() const {
 void PositionHistory::Reset(const ChessBoard& board, int rule50_ply,
                             int game_ply) {
   positions_.clear();
+  position_map_.clear();
   positions_.emplace_back(board, rule50_ply, game_ply);
 }
 
@@ -118,34 +119,31 @@ void PositionHistory::Append(Move m) {
   // TODO(mooskagh) That should be emplace_back(Last(), m), but MSVS STL
   //                has a bug in implementation of emplace_back, when
   //                reallocation happens. (it also reallocates Last())
-  positions_.push_back(Position(Last(), m));
+  const auto pos = Position(Last(), m);
+  positions_.push_back(pos.Hash());
   int cycle_length;
   int repetitions = ComputeLastMoveRepetitions(&cycle_length);
-  positions_.back().SetRepetitions(repetitions, cycle_length);
+  position_map_.at(positions_.back()).SetRepetitions(repetitions, cycle_length);
+  position_map_.insert(std::make_pair(positions_.back(), pos));
 }
 
 int PositionHistory::ComputeLastMoveRepetitions(int* cycle_length) const {
   *cycle_length = 0;
   const auto& last = positions_.back();
-  // TODO(crem) implement hash/cache based solution.
-  if (last.GetRule50Ply() < 4) return 0;
-
-  for (int idx = positions_.size() - 3; idx >= 0; idx -= 2) {
-    const auto& pos = positions_[idx];
-    if (pos.GetBoard() == last.GetBoard()) {
-      *cycle_length = positions_.size() - 1 - idx;
-      return 1 + pos.GetRepetitions();
-    }
-    if (pos.GetRule50Ply() < 2) return 0;
+  if (auto p = position_map_.at(last)) {
+    *cycle_length = last.GetGamePly() - p.GetGamePly();
+    return 1 + p.GetRepetitions();
+  } else {
+    return 0;
   }
-  return 0;
 }
 
 bool PositionHistory::DidRepeatSinceLastZeroingMove() const {
   for (auto iter = positions_.rbegin(), end = positions_.rend(); iter != end;
        ++iter) {
-    if (iter->GetRepetitions() > 0) return true;
-    if (iter->GetRule50Ply() == 0) return false;
+    const auto pos = position_map_.at(*iter);
+    if (pos.GetRepetitions() > 0) return true;
+    if (pos.GetRule50Ply() == 0) return false;
   }
   return false;
 }

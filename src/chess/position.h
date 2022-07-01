@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <string>
+#include <unordered_set>
 
 #include "chess/board.h"
 
@@ -117,14 +118,18 @@ class PositionHistory {
   }
   PositionHistory& operator=(PositionHistory&& other) = default;
 
+  const Position& OfHash(uint64_t h) const {
+    return position_map_.at(h);
+  }
+
   // Returns first position of the game (or fen from which it was initialized).
-  const Position& Starting() const { return positions_.front(); }
+  const Position& Starting() const { return OfHash(positions_.front()); }
 
   // Returns the latest position of the game.
-  const Position& Last() const { return positions_.back(); }
+  const Position& Last() const { return OfHash(positions_.back()); }
 
   // N-th position of the game, 0-based.
-  const Position& GetPositionAt(int idx) const { return positions_[idx]; }
+  const Position& GetPositionAt(int idx) const { return OfHash(positions_[idx]); }
 
   // Trims position to a given size.
   void Trim(int size) {
@@ -162,7 +167,8 @@ class PositionHistory {
  private:
   int ComputeLastMoveRepetitions(int* cycle_length) const;
 
-  std::vector<Position> positions_;
+  std::vector<uint64_t> positions_;
+  std::unordered_map<uint64_t, Position> position_map_;
 };
 
 }  // namespace lczero
