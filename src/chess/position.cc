@@ -130,12 +130,13 @@ void PositionHistory::Append(Move m) {
 int PositionHistory::ComputeLastMoveRepetitions(int* cycle_length) const {
   *cycle_length = 0;
   const auto& last = positions_.back();
-  if (auto p = position_map_.at(last)) {
-    *cycle_length = last.GetGamePly() - p.GetGamePly();
-    return 1 + p.GetRepetitions();
-  } else {
+  if (position_map_.find(last) == position_map_.end()) {
     return 0;
   }
+
+  const auto& p = position_map_.at(last);
+  *cycle_length = positions_.size() - p.GetGamePly() - 1;
+  return 1 + p.GetRepetitions();
 }
 
 bool PositionHistory::DidRepeatSinceLastZeroingMove() const {
@@ -153,7 +154,7 @@ uint64_t PositionHistory::HashLast(int positions) const {
   for (auto iter = positions_.rbegin(), end = positions_.rend(); iter != end;
        ++iter) {
     if (!positions--) break;
-    hash = HashCat(hash, iter->Hash());
+    hash = HashCat(hash, position_map_.at(*iter).Hash());
   }
   return HashCat(hash, Last().GetRule50Ply());
 }

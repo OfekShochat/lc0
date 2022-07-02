@@ -29,7 +29,7 @@
 
 #include <algorithm>
 #include <string>
-#include <unordered_set>
+#include "absl/container/flat_hash_map.h"
 
 #include "chess/board.h"
 
@@ -168,7 +168,8 @@ class PositionHistory {
   int ComputeLastMoveRepetitions(int* cycle_length) const;
 
   std::vector<uint64_t> positions_;
-  std::unordered_map<uint64_t, Position> position_map_;
+  absl::flat_hash_map<uint64_t, Position> position_map_;
+  // std::unordered_map<uint64_t, Position> position_map_;
 };
 
 }  // namespace lczero
