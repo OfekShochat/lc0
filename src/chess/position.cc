@@ -32,6 +32,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "utils/logging.h"
+
 namespace lczero {
 // GetPieceAt returns the piece found at row, col on board or the null-char '\0'
 // in case no piece there.
@@ -112,39 +114,59 @@ void PositionHistory::Reset(const ChessBoard& board, int rule50_ply,
                             int game_ply) {
   positions_.clear();
   position_map_.clear();
-  positions_.emplace_back(board, rule50_ply, game_ply);
+  const auto pos = Position(board, rule50_ply, game_ply);
+  position_map_.insert(std::make_pair(pos.GetBoard().Hash(), 0));
+  positions_.emplace_back(pos);
 }
 
 void PositionHistory::Append(Move m) {
   // TODO(mooskagh) That should be emplace_back(Last(), m), but MSVS STL
   //                has a bug in implementation of emplace_back, when
   //                reallocation happens. (it also reallocates Last())
-  const auto pos = Position(Last(), m);
-  positions_.push_back(pos.Hash());
-  int cycle_length;
-  int repetitions = ComputeLastMoveRepetitions(&cycle_length);
-  position_map_.at(positions_.back()).SetRepetitions(repetitions, cycle_length);
-  position_map_.insert(std::make_pair(positions_.back(), pos));
+  auto pos = Position(Last(), m);
+  if (pos.GetRule50Ply() == 0) {
+    position_map_.clear();
+  } else {
+    auto hash = pos.GetBoard().Hash();
+    auto item = position_map_.find(hash);
+    if ( item != position_map_.end()) {
+      auto index = item->second;
+      // Check hashed position is not deleted.
+      if (index < positions_.size() && pos.GetBoard() == positions_[index].GetBoard()) {
+        int repetitions = positions_[index].GetRepetitions() + 1;
+        int cycle_length = pos.GetRule50Ply() - positions_[index].GetRule50Ply();
+        pos.SetRepetitions(repetitions, cycle_length);
+      }
+      item->second = positions_.size();
+    } else {
+      position_map_.insert(std::make_pair(hash, positions_.size()));
+    }
+  }
+  positions_.emplace_back(pos);
 }
 
 int PositionHistory::ComputeLastMoveRepetitions(int* cycle_length) const {
   *cycle_length = 0;
   const auto& last = positions_.back();
-  if (position_map_.find(last) == position_map_.end()) {
-    return 0;
-  }
+  // TODO(crem) implement hash/cache based solution.
+  if (last.GetRule50Ply() < 4) return 0;
 
-  const auto& p = position_map_.at(last);
-  *cycle_length = positions_.size() - p.GetGamePly() - 1;
-  return 1 + p.GetRepetitions();
+  for (int idx = positions_.size() - 3; idx >= 0; idx -= 2) {
+    const auto& pos = positions_[idx];
+    if (pos.GetBoard() == last.GetBoard()) {
+      *cycle_length = positions_.size() - 1 - idx;
+      return 1 + pos.GetRepetitions();
+    }
+    if (pos.GetRule50Ply() < 2) return 0;
+  }
+  return 0;
 }
 
 bool PositionHistory::DidRepeatSinceLastZeroingMove() const {
   for (auto iter = positions_.rbegin(), end = positions_.rend(); iter != end;
        ++iter) {
-    const auto pos = position_map_.at(*iter);
-    if (pos.GetRepetitions() > 0) return true;
-    if (pos.GetRule50Ply() == 0) return false;
+    if (iter->GetRepetitions() > 0) return true;
+    if (iter->GetRule50Ply() == 0) return false;
   }
   return false;
 }
@@ -154,7 +176,7 @@ uint64_t PositionHistory::HashLast(int positions) const {
   for (auto iter = positions_.rbegin(), end = positions_.rend(); iter != end;
        ++iter) {
     if (!positions--) break;
-    hash = HashCat(hash, position_map_.at(*iter).Hash());
+    hash = HashCat(hash, iter->Hash());
   }
   return HashCat(hash, Last().GetRule50Ply());
 }

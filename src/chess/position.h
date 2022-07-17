@@ -105,6 +105,7 @@ class PositionHistory {
     positions_.reserve(
         std::max(other.positions_.size() + 1, other.positions_.capacity()));
     positions_ = other.positions_;
+    position_map_ = other.position_map_;
   }
   PositionHistory(PositionHistory&& other) = default;
 
@@ -114,25 +115,25 @@ class PositionHistory {
     positions_.reserve(
         std::max(other.positions_.size() + 1, other.positions_.capacity()));
     positions_ = other.positions_;
+    position_map_ = other.position_map_;
     return *this;
   }
   PositionHistory& operator=(PositionHistory&& other) = default;
 
-  const Position& OfHash(uint64_t h) const {
-    return position_map_.at(h);
-  }
-
   // Returns first position of the game (or fen from which it was initialized).
-  const Position& Starting() const { return OfHash(positions_.front()); }
+  const Position& Starting() const { return positions_.front(); }
+
 
   // Returns the latest position of the game.
-  const Position& Last() const { return OfHash(positions_.back()); }
+  const Position& Last() const { return positions_.back(); }
 
   // N-th position of the game, 0-based.
-  const Position& GetPositionAt(int idx) const { return OfHash(positions_[idx]); }
+  const Position& GetPositionAt(int idx) const { return positions_[idx]; }
+
 
   // Trims position to a given size.
   void Trim(int size) {
+    position_map_.erase(positions_.begin() + size, positions_.cend());
     positions_.erase(positions_.begin() + size, positions_.end());
   }
 
@@ -150,7 +151,12 @@ class PositionHistory {
   void Append(Move m);
 
   // Pops last move from history.
-  void Pop() { positions_.pop_back(); }
+  void Pop() {
+    if (Last().GetRepetitions() > 0) {
+      position_map_.insert(std::make_pair(Last().Hash(), ));
+    }
+    positions_.pop_back();
+  }
 
   // Finds the endgame state (win/lose/draw/nothing) for the last position.
   GameResult ComputeGameResult() const;
@@ -167,8 +173,8 @@ class PositionHistory {
  private:
   int ComputeLastMoveRepetitions(int* cycle_length) const;
 
-  std::vector<uint64_t> positions_;
-  absl::flat_hash_map<uint64_t, Position> position_map_;
+  std::vector<Position> positions_;
+  absl::flat_hash_map<uint64_t, size_t> position_map_;
   // std::unordered_map<uint64_t, Position> position_map_;
 };
 
