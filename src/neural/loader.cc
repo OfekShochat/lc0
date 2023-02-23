@@ -143,12 +143,19 @@ WeightsFile ParseWeightsProto(const std::string& buffer) {
     throw Exception("Invalid weight file: bad header.");
   }
 
+  const auto experiment = net.min_version().major() >> 16;
+  const auto major_version = net.min_version().major() & 0xFFFF;
+  if (experiment != 0) {
+    CERR << "The loaded network is experimental. It might not work as expected if the backend was left unchanged.";
+  }
+  
   const auto min_version =
-      GetVersionStr(net.min_version().major(), net.min_version().minor(),
+      GetVersionStr(major_version, net.min_version().minor(),
                     net.min_version().patch(), "", "");
+
   const auto lc0_ver = GetVersionInt();
   const auto net_ver =
-      GetVersionInt(net.min_version().major(), net.min_version().minor(),
+      GetVersionInt(major_version, net.min_version().minor(),
                     net.min_version().patch());
 
   FixOlderWeightsFile(&net);
